@@ -161,7 +161,7 @@ def create_source_bin(index,uri):
         return None
     return nbin
 
-def main(args, config=None):
+def main(args, output_path, config=None):
     global perf_data
     perf_data = PERF_DATA(len(args))
 
@@ -192,7 +192,7 @@ def main(args, config=None):
     ! x264enc name=encoder \
     ! h264parse \
     ! qtmux \
-    ! filesink name=filesink location=./output/out.mp4
+    ! filesink name=filesink
     """
     
     # Create pipeline
@@ -280,6 +280,7 @@ def main(args, config=None):
     
     # Filesink
     sink = pipeline.get_by_name("filesink")
+    sink.set_property("location", output_path)
     sink.set_property("sync", 1)
     sink.set_property("async", 0)
     sink.set_property("qos",0)
@@ -328,6 +329,12 @@ def parse_args():
         required=True,
     )
     parser.add_argument(
+        "-o",
+        "--output",
+        help="Path to output file",
+        default="path/to/output/out.mp4",
+    )
+    parser.add_argument(
         "-c",
         "--configfile",
         default="/path/to/folder/model/",
@@ -355,6 +362,7 @@ def parse_args():
     args = parser.parse_args()
 
     stream_paths = args.input
+    output_path = args.output
     config = args.configfile
     global silent
     global file_loop
@@ -368,9 +376,9 @@ def parse_args():
             sys.exit(1)
 
     print(vars(args))
-    return stream_paths, config
+    return stream_paths, output_path, config
 
 if __name__ == '__main__':
-    stream_paths, config = parse_args()
-    sys.exit(main(stream_paths, config))
+    stream_paths, output_path, config  = parse_args()
+    sys.exit(main(stream_paths, output_path, config ))
 
