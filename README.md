@@ -150,7 +150,7 @@ scaling-filter=8
 
 Run the application with the following command:
 ```
-python main.py -i <uri1> [uri2] -o /path/to/output/file -c /path/to/config/file
+python main.py -i <uri1> [uri2] -o /path/to/output/file -c /path/to/folder/config
 ```
 * Note
 
