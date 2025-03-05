@@ -1,0 +1,4 @@
+gun
+knife
+sword
+scissor

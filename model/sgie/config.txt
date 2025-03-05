@@ -1,0 +1,23 @@
+[property]
+gpu-id=0
+onnx-file= /path/to/onnx
+model-engine-file= /path/to/engine
+labelfile-path=/path/to/model/sgie/labels.txt
+input-tensor-from-meta=1
+force-implicit-batch-dim=1
+batch-size=4
+num-detected-classes=4
+interval=0
+gie-unique-id=2
+# 1=Primary Mode 2=Secondary check OSD_PROCESS_MODE
+process-mode=2 
+## 0=FP32, 1=INT8, 2=FP16 mode
+network-mode=2
+# 0: Detector 1: Classifier 2: Segmentation3: Instance Segmentation
+network-type=0
+cluster-mode=2
+
+[class-attrs-all]
+nms-iou-threshold=0.5
+pre-cluster-threshold=0.3
+topk=200

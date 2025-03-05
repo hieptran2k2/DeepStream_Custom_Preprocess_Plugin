@@ -1,0 +1,18 @@
+[property]
+gpu-id=0
+onnx-file= /path/to/onnx
+model-engine-file= /path/to/engine
+labelfile-path=/path/to/model/pgie/labels.txt
+input-tensor-from-meta=1
+force-implicit-batch-dim=1
+batch-size=2
+process-mode=1
+num-detected-classes=7
+interval=0
+gie-unique-id=1
+cluster-mode=2
+
+[class-attrs-all]
+pre-cluster-threshold=0.25
+topk=100
+nms-iou-threshold=0.6
