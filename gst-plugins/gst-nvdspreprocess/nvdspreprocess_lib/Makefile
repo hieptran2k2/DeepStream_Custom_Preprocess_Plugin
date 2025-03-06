@@ -36,7 +36,10 @@ SRCS:= nvdspreprocess_lib.cpp nvdspreprocess_impl.cpp \
 INCS:= $(wildcard *.h)
 LIB:=libcustom2d_preprocess.so
 
-NVDS_VERSION:=6.3
+NVDS_VERSION?=
+ifeq ($(NVDS_VERSION),)
+  $(error "NVDS_VERSION is not set")
+endif
 
 CFLAGS+= -fPIC -DHAVE_CONFIG_H -std=c++17 -Wall -Werror -DDS_VERSION=\"6.3.0\" \
 	 -I /usr/local/cuda-$(CUDA_VER)/include \
