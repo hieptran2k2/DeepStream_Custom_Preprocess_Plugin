@@ -4,6 +4,7 @@ Create a custom preprocessing plugin in DeepStream using OpenCV with a scaling f
 ### Improvements on this repository
 
 * Custom preprocess plugin with openCV interpolation
+* Resolve the scaling issue of OpenCV and NVBUF, which differs according to the [forums](https://forums.developer.nvidia.com/t/image-comparison-deepstream-vs-opencv-python/220244)
 
 ### Basic usage
 
