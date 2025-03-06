@@ -119,7 +119,7 @@ To configure the output folder in the preprocess plugin, edit the ```gstnvdsprep
 
 Run the following command to set up the environment and compile the library:
 ```
-bash setting_envirioment.sh path/to/folder/DeepStream_Custom_Preprocess_Plugin
+bash setting_enviroment.sh path/to/folder/DeepStream_Custom_Preprocess_Plugin
 ```
 
 #### 6. Configure the Scaling Filter
