@@ -155,7 +155,7 @@ scaling-filter=8
 ...
 [group-0]
 src-ids=0;1
-custom-input-transformation-function=CustomTransformation
+custom-input-transformation-function=CustomAsyncTransformation # or CustomTransformation
 ....
 ```
 #### 7. Run the Application
