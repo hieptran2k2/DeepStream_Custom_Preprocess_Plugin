@@ -145,6 +145,10 @@ Edit the ```config_preprocess.txt``` file to specify the scaling filter you wish
     # 14 = OPEN_CV_WARP_INVERSE_MAP
 scaling-filter=8
 ...
+[group-0]
+src-ids=0;1
+custom-input-transformation-function=CustomTransformation
+....
 ```
 #### 7. Run the Application
 
