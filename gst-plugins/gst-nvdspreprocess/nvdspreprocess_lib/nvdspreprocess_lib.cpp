@@ -8,6 +8,9 @@
 #include <condition_variable>
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/cudawarping.hpp>   // cv::cuda::resize
+#include <opencv2/cudaimgproc.hpp>    // cv::cuda::cvtColor
 
 #include "nvbufsurface.h"
 #include "nvbufsurftransform.h"
@@ -240,7 +243,7 @@ NvBufSurfaceConversion(NvBufSurface *in_surf, NvBufSurface *output_surf, CustomT
 
 // Function to perform an OpenCV transformation on the input surface and write the result to the output surface
 NvDsPreProcessStatus
-OpenCVTransform(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransformParams &params)
+OpenCVTransform_CPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransformParams &params)
 {
   /*
    * @brief Performs an OpenCV-based transformation on the input surface.
@@ -375,6 +378,301 @@ OpenCVTransform(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransformPa
 }
 
 NvDsPreProcessStatus
+OpenCVTransform_CPU_Async(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransformParams &params)
+{
+    NvDsPreProcessStatus err;
+    NvBufSurfTransform_Inter filter = params.transform_params.transform_filter;
+
+    // Create a CUDA stream for asynchronous memory copies
+    cudaStream_t stream;
+    if (cudaStreamCreate(&stream) != cudaSuccess) {
+        std::cerr << "Error: Unable to create CUDA stream." << std::endl;
+        return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+    }
+
+    // Create a new GPU surface to store the converted RGBA image
+    NvBufSurfaceCreateParams output_param;
+    memset(&output_param, 0, sizeof(output_param));
+    output_param.gpuId = in_surf->gpuId;
+    output_param.colorFormat = NVBUF_COLOR_FORMAT_RGBA;
+    output_param.memType = NVBUF_MEM_DEFAULT;
+    output_param.layout = NVBUF_LAYOUT_PITCH;
+    output_param.width = in_surf->surfaceList[0].width;
+    output_param.height = in_surf->surfaceList[0].height;
+
+    NvBufSurface* in_RGBA_surf = nullptr;
+    if (NvBufSurfaceCreate(&in_RGBA_surf, in_surf->numFilled, &output_param) != 0) {
+        std::cerr << "Error: Unable to allocate destination buffer." << std::endl;
+        cudaStreamDestroy(stream);
+        return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+    }
+
+    // Convert the input surface to RGBA on GPU
+    err = NvBufSurfaceConversion(in_surf, in_RGBA_surf, params);
+    if (err != NVDSPREPROCESS_SUCCESS) {
+        NvBufSurfaceUnMap(in_RGBA_surf, 0, 0);
+        NvBufSurfaceDestroy(in_RGBA_surf);
+        cudaStreamDestroy(stream);
+        printf("NvBufSurfTransform failed with error %d\n", err);
+        return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+    }
+
+    // Process each filled frame in the surface
+    for (guint frameIndex = 0; frameIndex < in_surf->numFilled; frameIndex++) {
+
+        // Retrieve frame dimensions
+        gint frame_width = in_RGBA_surf->surfaceList[frameIndex].width;
+        gint frame_height = in_RGBA_surf->surfaceList[frameIndex].height;
+
+        // Allocate host pinned memory for copying image data from the GPU
+        void *src_data = NULL;
+        CHECK_CUDA_STATUS(cudaMallocHost(&src_data, in_RGBA_surf->surfaceList[frameIndex].dataSize),
+                          "Could not allocate cuda host buffer");
+        if (src_data == NULL) {
+            g_print("Error: failed to malloc src_data \n");
+            cudaStreamDestroy(stream);
+            return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+        }
+
+        // Copy image data from device (GPU) to host (CPU) asynchronously
+        cudaMemcpyAsync(src_data,
+                        in_RGBA_surf->surfaceList[frameIndex].dataPtr,
+                        in_RGBA_surf->surfaceList[frameIndex].dataSize,
+                        cudaMemcpyDeviceToHost, stream);
+
+        // Synchronize the stream to ensure the copy is complete before CPU processing
+        cudaStreamSynchronize(stream);
+
+        size_t frame_step = in_RGBA_surf->surfaceList[frameIndex].pitch;
+
+        // Create an OpenCV Mat from the host-copied image data
+        cv::Mat frame_mat(frame_height, frame_width, CV_8UC4, src_data, frame_step);
+
+        // Define the region of interest for cropping
+        cv::Rect roi(params.transform_params.src_rect->left, params.transform_params.src_rect->top,
+                     params.transform_params.src_rect->width, params.transform_params.src_rect->height);
+        cv::Mat cropped_image = frame_mat(roi);
+
+        // Map the interpolation filter to the corresponding OpenCV interpolation method
+        int interpolation = MappingOpenCVInterpolation(filter);
+        if (interpolation == -1) {
+            printf("Error: Invalid interpolation filter mapping.\n");
+            cudaFreeHost(src_data);
+            NvBufSurfaceUnMap(in_RGBA_surf, 0, 0);
+            NvBufSurfaceDestroy(in_RGBA_surf);
+            cudaStreamDestroy(stream);
+            return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+        }
+
+        // Resize the cropped image to match the destination rectangle dimensions
+        cv::Size newSize(params.transform_params.dst_rect->width, params.transform_params.dst_rect->height);
+        cv::Mat resize_img;
+        cv::resize(cropped_image, resize_img, newSize, 0, 0, interpolation);
+
+        // Prepare the output image
+        cv::Mat out_image;
+        if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGBA) {
+            // Create a black RGBA image of the required output dimensions
+            out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height,
+                                       out_surf->surfaceList[frameIndex].width, CV_8UC4);
+            // Copy the resized image into the designated destination region
+            resize_img.copyTo(out_image(cv::Rect(params.transform_params.dst_rect->left,
+                                                 params.transform_params.dst_rect->top,
+                                                 params.transform_params.dst_rect->width,
+                                                 params.transform_params.dst_rect->height)));
+        } else {
+            // Create a black grayscale image if the output format is GRAY
+            out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height,
+                                       out_surf->surfaceList[frameIndex].width, CV_8UC1);
+            cv::Mat gray_image;
+            cv::cvtColor(resize_img, gray_image, cv::COLOR_RGBA2GRAY);
+            gray_image.copyTo(out_image(cv::Rect(params.transform_params.dst_rect->left,
+                                                 params.transform_params.dst_rect->top,
+                                                 params.transform_params.dst_rect->width,
+                                                 params.transform_params.dst_rect->height)));
+        }
+
+        // Copy the processed output image from host memory back to the GPU asynchronously
+        size_t sizeInBytes = out_surf->surfaceList[frameIndex].dataSize;
+        cudaMemcpyAsync(out_surf->surfaceList[frameIndex].dataPtr,
+                        out_image.ptr(0),
+                        sizeInBytes,
+                        cudaMemcpyHostToDevice, stream);
+
+        // Synchronize the stream to ensure copy completes before moving to the next frame
+        cudaStreamSynchronize(stream);
+
+        // Free the allocated host memory for this frame
+        cudaFreeHost(src_data);
+    }
+
+    // Unmap and destroy the intermediate RGBA surface
+    NvBufSurfaceUnMap(in_RGBA_surf, 0, 0);
+    NvBufSurfaceDestroy(in_RGBA_surf);
+
+    // Destroy the CUDA stream
+    cudaStreamDestroy(stream);
+
+    return NVDSPREPROCESS_SUCCESS;
+}
+
+NvDsPreProcessStatus 
+OpenCVTransform_GPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransformParams &params)
+{
+    NvDsPreProcessStatus err;
+    NvBufSurfTransform_Inter filter = params.transform_params.transform_filter;
+
+    // Convert input surface to RGBA format on GPU
+    NvBufSurfaceCreateParams output_param = {};
+    output_param.gpuId = in_surf->gpuId;
+    output_param.colorFormat = NVBUF_COLOR_FORMAT_RGBA;
+    output_param.memType = NVBUF_MEM_DEFAULT;
+    output_param.layout = NVBUF_LAYOUT_PITCH;
+    output_param.width = in_surf->surfaceList[0].width;
+    output_param.height = in_surf->surfaceList[0].height;
+
+    NvBufSurface* in_RGBA_surf = nullptr;
+    if (NvBufSurfaceCreate(&in_RGBA_surf, in_surf->numFilled, &output_param) != 0) {
+        std::cerr << "Error: Unable to allocate destination buffer." << std::endl;
+        return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+    }
+
+    err = NvBufSurfaceConversion(in_surf, in_RGBA_surf, params);
+    if (err != NVDSPREPROCESS_SUCCESS) {
+        NvBufSurfaceDestroy(in_RGBA_surf);
+        return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+    }
+
+    cudaSetDevice(in_surf->gpuId);
+    cv::cuda::setDevice(in_surf->gpuId);
+
+    for (guint frameIndex = 0; frameIndex < in_surf->numFilled; frameIndex++) {
+        int frame_width = in_RGBA_surf->surfaceList[frameIndex].width;
+        int frame_height = in_RGBA_surf->surfaceList[frameIndex].height;
+        
+        // Create GpuMat from GPU data
+        cv::cuda::GpuMat gpu_frame(frame_height, frame_width, CV_8UC4, in_RGBA_surf->surfaceList[frameIndex].dataPtr, in_RGBA_surf->surfaceList[frameIndex].pitch);
+        
+        // Crop image using ROI
+        cv::Rect roi(params.transform_params.src_rect->left, params.transform_params.src_rect->top, params.transform_params.src_rect->width, params.transform_params.src_rect->height);
+        cv::cuda::GpuMat cropped_gpu = gpu_frame(roi);
+        
+        // Resize image on GPU
+        int interpolation = MappingOpenCVInterpolation(filter);
+        if (interpolation == -1) {
+            NvBufSurfaceDestroy(in_RGBA_surf);
+            return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+        }
+        cv::cuda::GpuMat resized_gpu;
+        cv::cuda::resize(cropped_gpu, resized_gpu, cv::Size(params.transform_params.dst_rect->width, params.transform_params.dst_rect->height), 0, 0, interpolation);
+        
+        // Process output format
+        cv::cuda::GpuMat output_gpu;
+        if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGBA) {
+            output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC4);
+            output_gpu.setTo(cv::Scalar(0, 0, 0, 0)); // Black image
+            resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)));
+        } else {
+            cv::cuda::GpuMat gray_gpu;
+            cv::cuda::cvtColor(resized_gpu, gray_gpu, cv::COLOR_RGBA2GRAY);
+            output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC1);
+            output_gpu.setTo(cv::Scalar(0));
+            gray_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)));
+        }
+        
+        // Copy processed output image from GPU to output surface
+        cudaMemcpy(out_surf->surfaceList[frameIndex].dataPtr, output_gpu.ptr(0), out_surf->surfaceList[frameIndex].dataSize, cudaMemcpyDeviceToDevice);
+    }
+    
+    NvBufSurfaceDestroy(in_RGBA_surf);
+    return NVDSPREPROCESS_SUCCESS;
+}
+
+NvDsPreProcessStatus OpenCVTransform_GPU_Async(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransformParams &params)
+{
+    NvDsPreProcessStatus err;
+    NvBufSurfTransform_Inter filter = params.transform_params.transform_filter;
+
+    // Create CUDA stream for asynchronous operations
+    cv::cuda::Stream stream;
+
+    // Convert input surface to RGBA format on GPU
+    NvBufSurfaceCreateParams output_param = {};
+    output_param.gpuId = in_surf->gpuId;
+    output_param.colorFormat = NVBUF_COLOR_FORMAT_RGBA;
+    output_param.memType = NVBUF_MEM_DEFAULT;
+    output_param.layout = NVBUF_LAYOUT_PITCH;
+    output_param.width = in_surf->surfaceList[0].width;
+    output_param.height = in_surf->surfaceList[0].height;
+
+    NvBufSurface* in_RGBA_surf = nullptr;
+    if (NvBufSurfaceCreate(&in_RGBA_surf, in_surf->numFilled, &output_param) != 0) {
+        std::cerr << "Error: Unable to allocate destination buffer." << std::endl;
+        return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+    }
+
+    err = NvBufSurfaceConversion(in_surf, in_RGBA_surf, params);
+    if (err != NVDSPREPROCESS_SUCCESS) {
+        NvBufSurfaceDestroy(in_RGBA_surf);
+        return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+    }
+
+    cudaSetDevice(in_surf->gpuId);
+    cv::cuda::setDevice(in_surf->gpuId);
+
+    for (guint frameIndex = 0; frameIndex < in_surf->numFilled; frameIndex++) {
+        int frame_width = in_RGBA_surf->surfaceList[frameIndex].width;
+        int frame_height = in_RGBA_surf->surfaceList[frameIndex].height;
+        
+        // Create GpuMat from GPU data
+        cv::cuda::GpuMat gpu_frame(frame_height, frame_width, CV_8UC4, in_RGBA_surf->surfaceList[frameIndex].dataPtr, in_RGBA_surf->surfaceList[frameIndex].pitch);
+        
+        // Crop image using ROI
+        cv::Rect roi(params.transform_params.src_rect->left, params.transform_params.src_rect->top, 
+                     params.transform_params.src_rect->width, params.transform_params.src_rect->height);
+        cv::cuda::GpuMat cropped_gpu = gpu_frame(roi);
+        
+        // Resize image on GPU asynchronously using stream
+        int interpolation = MappingOpenCVInterpolation(filter);
+        if (interpolation == -1) {
+            NvBufSurfaceDestroy(in_RGBA_surf);
+            return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
+        }
+        cv::cuda::GpuMat resized_gpu;
+        cv::cuda::resize(cropped_gpu, resized_gpu, cv::Size(params.transform_params.dst_rect->width, params.transform_params.dst_rect->height), 0, 0, interpolation, stream);
+        
+        // Process output format asynchronously
+        cv::cuda::GpuMat output_gpu;
+        if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGBA) {
+            output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC4);
+            output_gpu.setTo(cv::Scalar(0, 0, 0, 0), stream); // Black image, set using stream
+            resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, 
+                                                   params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)), stream);
+        } else {
+            cv::cuda::GpuMat gray_gpu;
+            cv::cuda::cvtColor(resized_gpu, gray_gpu, cv::COLOR_RGBA2GRAY, 0, stream);
+            output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC1);
+            output_gpu.setTo(cv::Scalar(0), stream);
+            gray_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, 
+                                                params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)), stream);
+        }
+        
+        // Use asynchronous memory copy
+        cudaMemcpyAsync(out_surf->surfaceList[frameIndex].dataPtr,
+          output_gpu.ptr(0),
+          out_surf->surfaceList[frameIndex].dataSize,
+          cudaMemcpyDeviceToDevice,
+          reinterpret_cast<cudaStream_t>(stream.cudaPtr()));
+    }
+    
+    // Wait for all asynchronous operations to complete before proceeding
+    stream.waitForCompletion();
+    
+    NvBufSurfaceDestroy(in_RGBA_surf);
+    return NVDSPREPROCESS_SUCCESS;
+}
+
+NvDsPreProcessStatus
 CustomTransformation(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransformParams &params)
 {
   /*
@@ -394,7 +692,11 @@ CustomTransformation(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransf
   if (filter > NvBufSurfTransformInter_Default)
   {
     NvDsPreProcessStatus err_CV;
-    err_CV = OpenCVTransform(in_surf, out_surf, params);
+    if (cv::cuda::getCudaEnabledDeviceCount() == 0) {
+      err_CV = OpenCVTransform_CPU(in_surf, out_surf, params);
+    } else {
+      err_CV = OpenCVTransform_GPU(in_surf, out_surf, params);
+    }
     if (err_CV != NVDSPREPROCESS_SUCCESS)
     {
         printf("OpenCVTransform failed with error %d\n", err_CV);
@@ -431,7 +733,11 @@ CustomAsyncTransformation(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomT
   if (filter > NvBufSurfTransformInter_Default)
   {
     NvDsPreProcessStatus err_CV;
-    err_CV = OpenCVTransform(in_surf, out_surf, params);
+    if (cv::cuda::getCudaEnabledDeviceCount() == 0) {
+      err_CV = OpenCVTransform_CPU_Async(in_surf, out_surf, params);
+    } else {
+      err_CV = OpenCVTransform_GPU_Async(in_surf, out_surf, params);
+    }
     if (err_CV != NVDSPREPROCESS_SUCCESS)
     {
         printf("OpenCVTransform failed with error %d\n", err_CV);
