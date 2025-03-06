@@ -46,6 +46,7 @@ export NVDS_VERSION=X.Y (example: DeepStream 7.1, then NVDS_VERSION=7.1)
   ```
 #### 3. Install open-cv lib
 
+3.1 OpenCV 
 ```
 apt update
 apt install build-essential cmake git pkg-config
@@ -53,6 +54,11 @@ apt install libjpeg-dev libpng-dev libtiff-dev
 apt-get install -y libopencv-dev
 ```
 Alternatively, you can follow the official OpenCV installation guide for Linux from [here](https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html)
+
+3.2 OpenCV Cuda
+```
+bash install_opencv_cuda.sh
+```
 
 #### 4. Optional Settings
 
