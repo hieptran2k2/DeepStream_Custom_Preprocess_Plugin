@@ -1695,6 +1695,7 @@ private:
 };
 }
 
+#ifdef DUMP_INPUT_TO_FILE
 void dump_to_file(
         const char *filename, unsigned char *buffer, int size,
         int width, int height,
@@ -1743,6 +1744,7 @@ void dump_to_file(
     
         cv::imwrite(filename, img);
     }
+#endif // DUMP_INPUT_TO_FILE
 
 NvDsInferStatus
 NvDsInferContextImpl::queueInputBatch(NvDsInferContextBatchInput &batchInput)
