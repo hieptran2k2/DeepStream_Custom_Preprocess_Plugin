@@ -20,7 +20,7 @@ cd DeepStream_Custom_Preprocess_Plugin
 
 ```
 export CUDA_VER=XY.Z
-export NVDS_VERSION=X.Y (example: DeepStream 7.1, then NVDS_VERSION=X.Y = 7.1)
+export NVDS_VERSION=X.Y (example: DeepStream 7.1, then NVDS_VERSION=7.1)
 ```
 
 * x86 platform
