@@ -25,7 +25,10 @@ SRCS:= nvdsinfer_context_impl.cpp  nvdsinfer_context_impl_capi.cpp \
 INCS:= $(wildcard *.h)
 LIB:=libnvds_infer.so
 
-NVDS_VERSION:=6.3
+NVDS_VERSION?=
+ifeq ($(NVDS_VERSION),)
+  $(error "NVDS_VERSION is not set")
+endif
 
 LIB_INSTALL_DIR?=/opt/nvidia/deepstream/deepstream-$(NVDS_VERSION)/lib/
 
