@@ -23,7 +23,7 @@ COPY gst-plugins /deepstream/gst-plugins
 COPY includes /deepstream/includes
 COPY libs /deepstream/libs
 COPY install_opencv_cuda.sh /deepstream/install_opencv_cuda.sh.sh
-COPY setting_enviroment.sh /deepstream/setting_envirioment.sh
+COPY setting_enviroment.sh /deepstream/setting_enviroment.sh
 
 WORKDIR /deepstream
 
