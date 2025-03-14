@@ -29,7 +29,7 @@
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
 #endif
 #ifdef WITH_OPENCV
-#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/objdetect.hpp>  // or include <opencv2/objdetect/objdetect.hpp>
 #endif
 #pragma GCC diagnostic pop
 
