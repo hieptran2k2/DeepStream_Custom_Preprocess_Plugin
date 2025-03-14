@@ -1,8 +1,8 @@
-FROM nvcr.io/nvidia/deepstream:7.1-gc-triton-devel
+FROM nvcr.io/nvidia/deepstream:6.3-gc-triton-devel
 
-ENV DEEPSTREAM_VERSION=7.1
-ENV CUDA_VER=12.6
-ENV NVDS_VERSION=7.1
+ENV DEEPSTREAM_VERSION=6.3
+ENV CUDA_VER=12.1
+ENV NVDS_VERSION=6.3
 
 # Run pre-require
 RUN python3 --version # 3.10.12
