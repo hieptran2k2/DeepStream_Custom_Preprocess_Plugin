@@ -22,8 +22,8 @@ RUN mkdir /deepstream && cd /deepstream
 COPY gst-plugins /deepstream/gst-plugins
 COPY includes /deepstream/includes
 COPY libs /deepstream/libs
-COPY install_opencv_cuda.sh /deepstream/setting_envirioment.sh
-COPY setting_envirioment.sh /deepstream/setting_envirioment.sh
+COPY install_opencv_cuda.sh /deepstream/install_opencv_cuda.sh.sh
+COPY setting_enviroment.sh /deepstream/setting_envirioment.sh
 
 WORKDIR /deepstream
 
@@ -31,7 +31,7 @@ WORKDIR /deepstream
 RUN bash install_opencv_cuda.sh
 
 #Setting environment
-RUN bash setting_envirioment.sh /deepstream/ 
+RUN bash setting_enviroment.sh /deepstream/ 
 
 
 
