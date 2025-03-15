@@ -13,9 +13,6 @@ RUN apt -y install python3-gi python3-gst-1.0 python-gi-dev git meson \
     libglib2.0-dev-bin libgstreamer1.0-dev libtool m4 autoconf automake libgirepository1.0-dev libcairo2-dev
 RUN pip3 install --upgrade pip
 
-# Install libs python
-RUN pip install pyds 
-
 # Install libs
 RUN apt-get update
 RUN apt-get install autoconf automake libtool make g++ unzip -y
