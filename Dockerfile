@@ -5,7 +5,7 @@ ENV CUDA_VER=12.1
 ENV NVDS_VERSION=6.3
 
 # Run pre-require
-RUN python3 --version # 3.10.12
+RUN python3 --version
 RUN apt update
 RUN apt install --fix-broken -y
 RUN apt -y install python3-gi python3-gst-1.0 python-gi-dev git meson \
