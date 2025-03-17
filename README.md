@@ -63,7 +63,7 @@ bash install_opencv_cuda.sh
 
 #### 4. Optional Settings
 
-4.1 Save Output from Preprocess Plugin
+4.1 Save Image Input Model
 
 Navigate to the ```nvdsinfer``` directory:
 ```
@@ -85,7 +85,7 @@ CFLAGS+= -fPIC -Wno-deprecated-declarations -std=c++14 \
 	 -I ../../includes
 ...
 ```
-To configure the output folder in the preprocess plugin, edit the ```nvdsinfer_context_impl.cpp```:
+To configure the output folder in the nvdsinfer, edit the ```nvdsinfer_context_impl.cpp```:
 ```
 #define SAVE_FOLDER   "/workspace/output/" # folder save output in preprocess plugin
 #define DUMP_FRAME_CNT_START   0           # start frame save
@@ -93,13 +93,13 @@ To configure the output folder in the preprocess plugin, edit the ```nvdsinfer_c
 #define dumpToRaw   false                  # save raw file or image
 ```
 
-4.2 Save Image Input Model
+4.2 Save Output from Preprocess Plugin
 
 Navigate to the ```gst-nvdspreprocess``` directory
 ```
 cd DeepStream_Custom_Preprocess_Plugin/gst-plugins/gst-nvdspreprocess
 ```
-To enable output saving, add the flag ```DUMP_INPUT_TO_FILE``` in the ```Makefile```:
+To enable output saving, add the flag ```DUMP_ROIS``` in the ```Makefile```:
 ```
 ...
 CFLAGS+= -fPIC -DHAVE_CONFIG_H -std=c++17 -Wall -Werror -DDS_VERSION=\"6.3.0\" \
