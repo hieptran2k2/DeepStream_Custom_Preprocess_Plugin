@@ -25,7 +25,7 @@ WORKDIR /deepstream
 RUN bash install_opencv_cuda.sh
 
 #Setting environment
-RUN bash setting_enviroment.sh /deepstream/ 
+# RUN bash setting_enviroment.sh /deepstream/ # Run in container
 
 
 
