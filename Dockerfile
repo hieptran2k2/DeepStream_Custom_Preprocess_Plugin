@@ -5,12 +5,6 @@ ENV CUDA_VER=12.1
 ENV NVDS_VERSION=6.3
 
 # Run pre-require
-RUN python3 --version
-RUN apt update
-RUN apt install --fix-broken -y
-RUN apt -y install python3-gi python3-gst-1.0 python-gi-dev git meson \
-    python3 python3-pip cmake g++ build-essential libglib2.0-dev \
-    libglib2.0-dev-bin libgstreamer1.0-dev libtool m4 autoconf automake libgirepository1.0-dev libcairo2-dev
 RUN pip3 install --upgrade pip
 
 # Install libs
