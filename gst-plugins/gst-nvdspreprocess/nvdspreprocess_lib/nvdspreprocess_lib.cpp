@@ -318,8 +318,8 @@ OpenCVTransform_CPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransfo
     cv::Mat frame_mat = cv::Mat(frame_height, frame_width, CV_8UC4, src_data, frame_step);
 
     // Define the region of interest for cropping based on source rectangle parameters
-    cv::Rect roi(params.transform_params.src_rect->left, params.transform_params.src_rect->top,  
-                 params.transform_params.src_rect->width, params.transform_params.src_rect->height);
+    cv::Rect roi(params.transform_params.src_rect[frameIndex].left, params.transform_params.src_rect[frameIndex].top,  
+                 params.transform_params.src_rect[frameIndex].width, params.transform_params.src_rect[frameIndex].height);
 
     cv::Mat cropped_image = frame_mat(roi);
 
@@ -335,7 +335,7 @@ OpenCVTransform_CPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransfo
     }
 
     // Resize the cropped image to match the destination rectangle dimensions
-    cv::Size newSize(params.transform_params.dst_rect->width, params.transform_params.dst_rect->height);
+    cv::Size newSize(params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height);
     cv::Mat resize_img;
     cv::resize(cropped_image, resize_img, newSize, 0, 0, interpolation); 
 
@@ -347,16 +347,16 @@ OpenCVTransform_CPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransfo
       out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC4);
 
       // Copy the resized image into the designated destination region
-      resize_img.copyTo(out_image(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top,  
-                                          params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)));                                                         
+      resize_img.copyTo(out_image(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top,  
+                                          params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)));                                                         
     } else {
       // Create a black grayscale image if the output format is GRAY
       out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC1); 
 
       cv::Mat gray_image;
       cv::cvtColor(resize_img, gray_image, cv::COLOR_RGBA2GRAY);
-      gray_image.copyTo(out_image(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top,  
-                                          params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)));   
+      gray_image.copyTo(out_image(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top,  
+                                          params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)));   
     }
 
     // Copy the processed output image from host memory back to the GPU
@@ -449,8 +449,8 @@ OpenCVTransform_CPU_Async(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomT
         cv::Mat frame_mat(frame_height, frame_width, CV_8UC4, src_data, frame_step);
 
         // Define the region of interest for cropping
-        cv::Rect roi(params.transform_params.src_rect->left, params.transform_params.src_rect->top,
-                     params.transform_params.src_rect->width, params.transform_params.src_rect->height);
+        cv::Rect roi(params.transform_params.src_rect[frameIndex].left, params.transform_params.src_rect[frameIndex].top,
+                     params.transform_params.src_rect[frameIndex].width, params.transform_params.src_rect[frameIndex].height);
         cv::Mat cropped_image = frame_mat(roi);
 
         // Map the interpolation filter to the corresponding OpenCV interpolation method
@@ -465,7 +465,7 @@ OpenCVTransform_CPU_Async(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomT
         }
 
         // Resize the cropped image to match the destination rectangle dimensions
-        cv::Size newSize(params.transform_params.dst_rect->width, params.transform_params.dst_rect->height);
+        cv::Size newSize(params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height);
         cv::Mat resize_img;
         cv::resize(cropped_image, resize_img, newSize, 0, 0, interpolation);
 
@@ -476,20 +476,20 @@ OpenCVTransform_CPU_Async(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomT
             out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height,
                                        out_surf->surfaceList[frameIndex].width, CV_8UC4);
             // Copy the resized image into the designated destination region
-            resize_img.copyTo(out_image(cv::Rect(params.transform_params.dst_rect->left,
-                                                 params.transform_params.dst_rect->top,
-                                                 params.transform_params.dst_rect->width,
-                                                 params.transform_params.dst_rect->height)));
+            resize_img.copyTo(out_image(cv::Rect(params.transform_params.dst_rect[frameIndex].left,
+                                                 params.transform_params.dst_rect[frameIndex].top,
+                                                 params.transform_params.dst_rect[frameIndex].width,
+                                                 params.transform_params.dst_rect[frameIndex].height)));
         } else {
             // Create a black grayscale image if the output format is GRAY
             out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height,
                                        out_surf->surfaceList[frameIndex].width, CV_8UC1);
             cv::Mat gray_image;
             cv::cvtColor(resize_img, gray_image, cv::COLOR_RGBA2GRAY);
-            gray_image.copyTo(out_image(cv::Rect(params.transform_params.dst_rect->left,
-                                                 params.transform_params.dst_rect->top,
-                                                 params.transform_params.dst_rect->width,
-                                                 params.transform_params.dst_rect->height)));
+            gray_image.copyTo(out_image(cv::Rect(params.transform_params.dst_rect[frameIndex].left,
+                                                 params.transform_params.dst_rect[frameIndex].top,
+                                                 params.transform_params.dst_rect[frameIndex].width,
+                                                 params.transform_params.dst_rect[frameIndex].height)));
         }
 
         // Copy the processed output image from host memory back to the GPU asynchronously
@@ -552,9 +552,9 @@ OpenCVTransform_GPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransfo
         
         // Create GpuMat from GPU data
         cv::cuda::GpuMat gpu_frame(frame_height, frame_width, CV_8UC4, in_RGBA_surf->surfaceList[frameIndex].dataPtr, in_RGBA_surf->surfaceList[frameIndex].pitch);
-        
+
         // Crop image using ROI
-        cv::Rect roi(params.transform_params.src_rect->left, params.transform_params.src_rect->top, params.transform_params.src_rect->width, params.transform_params.src_rect->height);
+        cv::Rect roi(params.transform_params.src_rect[frameIndex].left, params.transform_params.src_rect[frameIndex].top, params.transform_params.src_rect[frameIndex].width, params.transform_params.src_rect[frameIndex].height);
         cv::cuda::GpuMat cropped_gpu = gpu_frame(roi);
         
         // Resize image on GPU
@@ -564,22 +564,22 @@ OpenCVTransform_GPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransfo
             return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
         }
         cv::cuda::GpuMat resized_gpu;
-        cv::cuda::resize(cropped_gpu, resized_gpu, cv::Size(params.transform_params.dst_rect->width, params.transform_params.dst_rect->height), 0, 0, interpolation);
+        cv::cuda::resize(cropped_gpu, resized_gpu, cv::Size(params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height), 0, 0, interpolation);
         
         // Process output format
         cv::cuda::GpuMat output_gpu;
         if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGBA) {
             output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC4);
             output_gpu.setTo(cv::Scalar(0, 0, 0, 0)); // Black image
-            resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)));
+            resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top, params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)));
         } else {
             cv::cuda::GpuMat gray_gpu;
             cv::cuda::cvtColor(resized_gpu, gray_gpu, cv::COLOR_RGBA2GRAY);
             output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC1);
             output_gpu.setTo(cv::Scalar(0));
-            gray_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)));
+            gray_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top, params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)));
         }
-        
+
         // Copy processed output image from GPU to output surface
         cudaMemcpy(out_surf->surfaceList[frameIndex].dataPtr, output_gpu.ptr(0), out_surf->surfaceList[frameIndex].dataSize, cudaMemcpyDeviceToDevice);
     }
@@ -628,8 +628,8 @@ NvDsPreProcessStatus OpenCVTransform_GPU_Async(NvBufSurface *in_surf, NvBufSurfa
         cv::cuda::GpuMat gpu_frame(frame_height, frame_width, CV_8UC4, in_RGBA_surf->surfaceList[frameIndex].dataPtr, in_RGBA_surf->surfaceList[frameIndex].pitch);
         
         // Crop image using ROI
-        cv::Rect roi(params.transform_params.src_rect->left, params.transform_params.src_rect->top, 
-                     params.transform_params.src_rect->width, params.transform_params.src_rect->height);
+        cv::Rect roi(params.transform_params.src_rect[frameIndex].left, params.transform_params.src_rect[frameIndex].top, 
+                     params.transform_params.src_rect[frameIndex].width, params.transform_params.src_rect[frameIndex].height);
         cv::cuda::GpuMat cropped_gpu = gpu_frame(roi);
         
         // Resize image on GPU asynchronously using stream
@@ -639,22 +639,22 @@ NvDsPreProcessStatus OpenCVTransform_GPU_Async(NvBufSurface *in_surf, NvBufSurfa
             return NVDSPREPROCESS_CUSTOM_TRANSFORMATION_FAILED;
         }
         cv::cuda::GpuMat resized_gpu;
-        cv::cuda::resize(cropped_gpu, resized_gpu, cv::Size(params.transform_params.dst_rect->width, params.transform_params.dst_rect->height), 0, 0, interpolation, stream);
+        cv::cuda::resize(cropped_gpu, resized_gpu, cv::Size(params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height), 0, 0, interpolation, stream);
         
         // Process output format asynchronously
         cv::cuda::GpuMat output_gpu;
         if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGBA) {
             output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC4);
             output_gpu.setTo(cv::Scalar(0, 0, 0, 0), stream); // Black image, set using stream
-            resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, 
-                                                   params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)), stream);
+            resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top, 
+                                                   params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)), stream);
         } else {
             cv::cuda::GpuMat gray_gpu;
             cv::cuda::cvtColor(resized_gpu, gray_gpu, cv::COLOR_RGBA2GRAY, 0, stream);
             output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC1);
             output_gpu.setTo(cv::Scalar(0), stream);
-            gray_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect->left, params.transform_params.dst_rect->top, 
-                                                params.transform_params.dst_rect->width, params.transform_params.dst_rect->height)), stream);
+            gray_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top, 
+                                                params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)), stream);
         }
         
         // Use asynchronous memory copy
