@@ -349,6 +349,12 @@ OpenCVTransform_CPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransfo
       // Copy the resized image into the designated destination region
       resize_img.copyTo(out_image(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top,  
                                           params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)));                                                         
+    } else if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGB) {
+          cv::Mat rgb_gpu;
+          cv::cuda::cvtColor(resize_gpu, rgb_gpu, cv::COLOR_RGBA2RGB);
+          out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC3); 
+          rgb_gpu.copyTo(out_image(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top,  
+                                          params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)));
     } else {
       // Create a black grayscale image if the output format is GRAY
       out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC1); 
@@ -480,6 +486,14 @@ OpenCVTransform_CPU_Async(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomT
                                                  params.transform_params.dst_rect[frameIndex].top,
                                                  params.transform_params.dst_rect[frameIndex].width,
                                                  params.transform_params.dst_rect[frameIndex].height)));
+        } else if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGB) {
+          cv::Mat rgb_gpu;
+          cv::cuda::cvtColor(resize_gpu, rgb_gpu, cv::COLOR_RGBA2RGB);
+          out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC3); 
+          rgb_gpu.copyTo(out_image(cv::Rect(params.transform_params.dst_rect[frameIndex].left, 
+                                            params.transform_params.dst_rect[frameIndex].top,  
+                                            params.transform_params.dst_rect[frameIndex].width, 
+                                            params.transform_params.dst_rect[frameIndex].height)));
         } else {
             // Create a black grayscale image if the output format is GRAY
             out_image = cv::Mat::zeros(out_surf->surfaceList[frameIndex].height,
@@ -572,6 +586,12 @@ OpenCVTransform_GPU(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransfo
             output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC4);
             output_gpu.setTo(cv::Scalar(0, 0, 0, 0)); // Black image
             resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top, params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)));
+        } else if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGB) {
+          cv::cuda::GpuMat rgb_gpu;
+          cv::cuda::cvtColor(resized_gpu, rgb_gpu, cv::COLOR_RGBA2RGB);
+          output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC3);
+          output_gpu.setTo(cv::Scalar(0, 0, 0)); // Black image
+          rgb_gpu.copyTo(output_gpu(cv::Rect(nvinferpreprocess->transform_params.dst_rect[frameIndex].left, nvinferpreprocess->transform_params.dst_rect[frameIndex].top, nvinferpreprocess->transform_params.dst_rect[frameIndex].width, nvinferpreprocess->transform_params.dst_rect[frameIndex].height)));        
         } else {
             cv::cuda::GpuMat gray_gpu;
             cv::cuda::cvtColor(resized_gpu, gray_gpu, cv::COLOR_RGBA2GRAY);
@@ -648,6 +668,12 @@ NvDsPreProcessStatus OpenCVTransform_GPU_Async(NvBufSurface *in_surf, NvBufSurfa
             output_gpu.setTo(cv::Scalar(0, 0, 0, 0), stream); // Black image, set using stream
             resized_gpu.copyTo(output_gpu(cv::Rect(params.transform_params.dst_rect[frameIndex].left, params.transform_params.dst_rect[frameIndex].top, 
                                                    params.transform_params.dst_rect[frameIndex].width, params.transform_params.dst_rect[frameIndex].height)), stream);
+        } else if (out_surf->surfaceList[frameIndex].colorFormat == NVBUF_COLOR_FORMAT_RGB) {
+          cv::cuda::GpuMat rgb_gpu;
+          cv::cuda::cvtColor(resized_gpu, rgb_gpu, cv::COLOR_RGBA2RGB);
+          output_gpu = cv::cuda::GpuMat(out_surf->surfaceList[frameIndex].height, out_surf->surfaceList[frameIndex].width, CV_8UC3);
+          output_gpu.setTo(cv::Scalar(0, 0, 0)); // Black image
+          rgb_gpu.copyTo(output_gpu(cv::Rect(nvinferpreprocess->transform_params.dst_rect[frameIndex].left, nvinferpreprocess->transform_params.dst_rect[frameIndex].top, nvinferpreprocess->transform_params.dst_rect[frameIndex].width, nvinferpreprocess->transform_params.dst_rect[frameIndex].height)));
         } else {
             cv::cuda::GpuMat gray_gpu;
             cv::cuda::cvtColor(resized_gpu, gray_gpu, cv::COLOR_RGBA2GRAY, 0, stream);
