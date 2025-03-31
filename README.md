@@ -184,3 +184,6 @@ python main.py -i <uri1> [uri2] -o /path/to/output/file -c /path/to/folder/confi
 ### Reference
 - DeepStream SDK Python: https://github.com/NVIDIA-AI-IOT/deepstream_python_apps
 - Open CV: https://github.com/opencv/opencv
+
+### ISSUES
+ [Results of cv::resize and cv::gpu::resize do not match](https://github.com/opencv/opencv/issues/4728)
