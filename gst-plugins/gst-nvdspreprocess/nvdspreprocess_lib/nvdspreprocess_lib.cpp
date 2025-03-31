@@ -12,6 +12,12 @@
 #include <opencv2/cudawarping.hpp>   // cv::cuda::resize
 #include <opencv2/cudaimgproc.hpp>    // cv::cuda::cvtColor
 
+#ifdef CPU_MODE
+    #define RUN_IN_CPU true
+#else
+    #define RUN_IN_CPU false
+#endif
+
 #include "nvbufsurface.h"
 #include "nvbufsurftransform.h"
 
@@ -718,7 +724,7 @@ CustomTransformation(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomTransf
   if (filter > NvBufSurfTransformInter_Default)
   {
     NvDsPreProcessStatus err_CV;
-    if (cv::cuda::getCudaEnabledDeviceCount() == 0) {
+    if (cv::cuda::getCudaEnabledDeviceCount() == 0 || RUN_IN_CPU) {
       err_CV = OpenCVTransform_CPU(in_surf, out_surf, params);
     } else {
       err_CV = OpenCVTransform_GPU(in_surf, out_surf, params);
@@ -759,11 +765,16 @@ CustomAsyncTransformation(NvBufSurface *in_surf, NvBufSurface *out_surf, CustomT
   if (filter > NvBufSurfTransformInter_Default)
   {
     NvDsPreProcessStatus err_CV;
-    if (cv::cuda::getCudaEnabledDeviceCount() == 0) {
-      err_CV = OpenCVTransform_CPU_Async(in_surf, out_surf, params);
+    if (cv::cuda::getCudaEnabledDeviceCount() == 0 || RUN_IN_CPU) {
+      err_CV = OpenCVTransform_CPU(in_surf, out_surf, params);
     } else {
-      err_CV = OpenCVTransform_GPU_Async(in_surf, out_surf, params);
+      err_CV = OpenCVTransform_GPU(in_surf, out_surf, params);
     }
+    // if (cv::cuda::getCudaEnabledDeviceCount() == 0) {
+    //   err_CV = OpenCVTransform_CPU_Async(in_surf, out_surf, params);
+    // } else {
+    //   err_CV = OpenCVTransform_GPU_Async(in_surf, out_surf, params);
+    // }
     if (err_CV != NVDSPREPROCESS_SUCCESS)
     {
         printf("OpenCVTransform failed with error %d\n", err_CV);
