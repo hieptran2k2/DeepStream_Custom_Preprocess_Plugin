@@ -113,6 +113,30 @@ To configure the output folder in the preprocess plugin, edit the ```gstnvdsprep
 #define SAVE_IN_FOLDER  "/workspace/output/" # folder save output in preprocess plugin
 ```
 
+4.3 Run Resize in CPU Mode or GPU Mode
+
+Navigate to the ```nvdspreprocess_lib``` directory
+```
+cd DeepStream_Custom_Preprocess_Plugin/gst-plugins/gst-nvdspreprocess/nvdspreprocess_lib
+```
+To enable CPU mode, add the flag ```CPU_MODE``` in the ```Makefile```:
+```
+...
+CFLAGS+= -fPIC -DHAVE_CONFIG_H -std=c++17 -Wall -Werror -DDS_VERSION=\"6.3.0\" \
+	 -I /usr/local/cuda-$(CUDA_VER)/include \
+	 -I ../include \
+	 -I ../../../includes -DCPU_MODE
+...
+```
+To use GPU mode, do not add the CPU_MODE flag, and instead use the following configuration:
+```
+...
+CFLAGS+= -fPIC -DHAVE_CONFIG_H -std=c++17 -Wall -Werror -DDS_VERSION=\"6.3.0\" \
+	 -I /usr/local/cuda-$(CUDA_VER)/include \
+	 -I ../include \
+	 -I ../../../includes
+...
+
 #### 5. Build the Library
 
 Run the following command to set up the environment and compile the library:
