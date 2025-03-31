@@ -136,6 +136,7 @@ CFLAGS+= -fPIC -DHAVE_CONFIG_H -std=c++17 -Wall -Werror -DDS_VERSION=\"6.3.0\" \
 	 -I ../include \
 	 -I ../../../includes
 ...
+```
 
 #### 5. Build the Library
 
